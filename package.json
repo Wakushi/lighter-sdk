@@ -10,6 +10,9 @@
     "info": "ts-node -r dotenv/config examples/scripts/get-info.ts",
     "auth-token": "ts-node -r dotenv/config examples/scripts/auth-token.ts",
     "get-auth-token": "ts-node -r dotenv/config examples/scripts/get-auth-token.ts",
+    "fast-withdraw": "ts-node -r dotenv/config examples/scripts/fast-withdraw.ts",
+    "account": "ts-node -r dotenv/config examples/scripts/check-account.ts",
+    "positions": "ts-node -r dotenv/config examples/scripts/positions-interaction.ts",
     "build": "tsc"
   },
   "keywords": [],

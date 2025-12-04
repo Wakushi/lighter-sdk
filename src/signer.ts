@@ -194,7 +194,47 @@ let cachedLibrary: any = null
 let cachedFunctions: any = null
 let cachedLibraryPath: string | null = null
 
-function initialize_signer(): any {
+/**
+ * Initializes and loads the native signer library, binding all FFI functions.
+ *
+ * This function performs platform detection, locates the appropriate native library
+ * (`.so`, `.dylib`, or `.dll`), loads it via koffi FFI, and binds all cryptographic
+ * signing functions. The library and functions are cached after the first load to
+ * avoid redundant initialization.
+ *
+ * @returns An object containing all bound FFI functions from the native library:
+ *   - GenerateAPIKey: Generates a new API key pair
+ *   - CreateClient: Creates a client instance for signing operations
+ *   - CheckClient: Validates client configuration
+ *   - SwitchAPIKey: Switches the active API key for signing
+ *   - SignChangePubKey: Signs a change public key transaction
+ *   - SignCreateOrder: Signs an order creation transaction
+ *   - SignCreateGroupedOrders: Signs multiple grouped orders
+ *   - SignCancelOrder: Signs an order cancellation transaction
+ *   - SignWithdraw: Signs a withdrawal transaction
+ *   - SignCreateSubAccount: Signs a sub-account creation transaction
+ *   - SignCancelAllOrders: Signs a cancel all orders transaction
+ *   - SignModifyOrder: Signs an order modification transaction
+ *   - SignTransfer: Signs a transfer transaction
+ *   - SignCreatePublicPool: Signs a public pool creation transaction
+ *   - SignUpdatePublicPool: Signs a public pool update transaction
+ *   - SignMintShares: Signs a share minting transaction
+ *   - SignBurnShares: Signs a share burning transaction
+ *   - SignUpdateLeverage: Signs a leverage update transaction
+ *   - CreateAuthToken: Creates an authentication token
+ *
+ * @throws {Error} If the platform/architecture is unsupported (only Linux x64,
+ *   macOS arm64, and Windows x64 are supported)
+ * @throws {Error} If the signer library file is not found in the expected location
+ * @throws {Error} If the library fails to load or bind functions
+ *
+ * @remarks
+ * - The function uses caching to ensure the library is only loaded once per process
+ * - Platform detection is based on `os.platform()` and `os.arch()`
+ * - The signers directory is expected to be at `{projectRoot}/signers/`
+ * - Library paths are resolved and normalized before loading
+ */
+export function initialize_signer(): any {
   if (cachedFunctions) {
     return cachedFunctions
   }
@@ -616,7 +656,6 @@ export class SignerClient {
       return [null, "Failed to sign change API key: null result returned"]
     }
 
-    // With koffi, structs are returned directly as objects
     const { str: txInfoStr, err: error } = extractStrOrErr(result)
 
     if (error) {
