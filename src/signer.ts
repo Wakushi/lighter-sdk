@@ -1,4 +1,3 @@
-import * as koffi from "koffi"
 import * as os from "os"
 import * as path from "path"
 import * as fs from "fs"
@@ -7,30 +6,47 @@ import { Configuration, TransactionApi, OrderApi, RespSendTx } from "."
 
 const CODE_OK = 200
 
-// C structure definitions using koffi
-const ApiKeyResponseStruct = koffi.struct("ApiKeyResponse", {
-  privateKey: "char*",
-  publicKey: "char*",
-  err: "char*",
-})
+let koffi: any = null
+function getKoffi() {
+  if (!koffi) {
+    koffi = require("koffi")
+  }
+  return koffi
+}
 
-const StrOrErrStruct = koffi.struct("StrOrErr", {
-  str: "char*",
-  err: "char*",
-})
+// C structure definitions using koffi (lazy-initialized)
+let ApiKeyResponseStruct: any = null
+let StrOrErrStruct: any = null
+let CreateOrderTxReqStruct: any = null
 
-const CreateOrderTxReqStruct = koffi.struct("CreateOrderTxReq", {
-  MarketIndex: "uint8",
-  ClientOrderIndex: "int64",
-  BaseAmount: "int64",
-  Price: "uint32",
-  IsAsk: "uint8",
-  Type: "uint8",
-  TimeInForce: "uint8",
-  ReduceOnly: "uint8",
-  TriggerPrice: "uint32",
-  OrderExpiry: "int64",
-})
+function initializeStructs() {
+  if (ApiKeyResponseStruct) return // Already initialized
+
+  const k = getKoffi()
+  ApiKeyResponseStruct = k.struct("ApiKeyResponse", {
+    privateKey: "char*",
+    publicKey: "char*",
+    err: "char*",
+  })
+
+  StrOrErrStruct = k.struct("StrOrErr", {
+    str: "char*",
+    err: "char*",
+  })
+
+  CreateOrderTxReqStruct = k.struct("CreateOrderTxReq", {
+    MarketIndex: "uint8",
+    ClientOrderIndex: "int64",
+    BaseAmount: "int64",
+    Price: "uint32",
+    IsAsk: "uint8",
+    Type: "uint8",
+    TimeInForce: "uint8",
+    ReduceOnly: "uint8",
+    TriggerPrice: "uint32",
+    OrderExpiry: "int64",
+  })
+}
 
 // Nonce Manager
 enum NonceManagerType {
@@ -239,6 +255,10 @@ export function initialize_signer(): any {
     return cachedFunctions
   }
 
+  // Initialize koffi structs lazily
+  initializeStructs()
+  const k = getKoffi()
+
   const platform = os.platform()
   const arch = os.arch()
   const isLinux = platform === "linux"
@@ -279,7 +299,7 @@ export function initialize_signer(): any {
   }
 
   try {
-    cachedLibrary = koffi.load(libraryPath)
+    cachedLibrary = k.load(libraryPath)
 
     cachedFunctions = {
       GenerateAPIKey: cachedLibrary.func(
@@ -316,7 +336,7 @@ export function initialize_signer(): any {
       SignCreateGroupedOrders: cachedLibrary.func(
         "SignCreateGroupedOrders",
         StrOrErrStruct,
-        ["uint8", koffi.pointer("void"), "int", "int64"]
+        ["uint8", k.pointer("void"), "int", "int64"]
       ),
       SignCancelOrder: cachedLibrary.func("SignCancelOrder", StrOrErrStruct, [
         "int",
@@ -733,7 +753,9 @@ export class SignerClient {
     // CreateOrderTxReq struct layout: uint8, int64, int64, uint32, uint8, uint8, uint8, uint8, uint32, int64
     // Total size: 1 + 8 + 8 + 4 + 1 + 1 + 1 + 1 + 4 + 8 = 37 bytes (with padding, likely 40 or 48)
     // Let's use koffi's struct size calculation
-    const structSize = koffi.sizeof(CreateOrderTxReqStruct)
+    initializeStructs()
+    const k = getKoffi()
+    const structSize = k.sizeof(CreateOrderTxReqStruct)
     const arraySize = orders.length * structSize
     const ordersPtr = Buffer.alloc(arraySize)
 
